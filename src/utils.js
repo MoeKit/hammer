@@ -2,7 +2,6 @@ var VENDOR_PREFIXES = ['', 'webkit', 'moz', 'MS', 'ms', 'o'];
 var TEST_ELEMENT = document.createElement('div');
 
 var TYPE_FUNCTION = 'function';
-var TYPE_UNDEFINED = 'undefined';
 
 var round = Math.round;
 var abs = Math.abs;
@@ -15,7 +14,7 @@ var now = Date.now;
  * @param {Object} context
  * @returns {number}
  */
-function setTimeoutScope(fn, timeout, context) {
+function setTimeoutContext(fn, timeout, context) {
     return setTimeout(bindFn(fn, context), timeout);
 }
 
@@ -101,24 +100,13 @@ function inherit(child, base, properties) {
     var baseP = base.prototype,
         childP;
 
-    // object create is supported since IE9
-    if (Object.create) {
-        childP = child.prototype = Object.create(baseP);
-        childP.constructor = child;
-    } else {
-        extend(child, base);
-        var Inherited = function() {
-            this.constructor = child;
-        };
-        Inherited.prototype = baseP;
-        childP = child.prototype = new Inherited();
-    }
+    childP = child.prototype = Object.create(baseP);
+    childP.constructor = child;
+    childP._super = baseP;
 
     if (properties) {
         extend(childP, properties);
     }
-
-    childP._super = baseP;
 }
 
 /**
@@ -128,7 +116,7 @@ function inherit(child, base, properties) {
  * @returns {Function}
  */
 function bindFn(fn, context) {
-    return function() {
+    return function boundFn() {
         return fn.apply(context, arguments);
     };
 }
@@ -250,9 +238,10 @@ function toArray(obj) {
  * unique array with objects based on a key (like 'id') or just by the array's value
  * @param {Array} src [{id:1},{id:2},{id:1}]
  * @param {String} [key]
+ * @param {Boolean} [sort=False]
  * @returns {Array} [{id:1},{id:2}]
  */
-function uniqueArray(src, key) {
+function uniqueArray(src, key, sort) {
     var results = [];
     var values = [];
     for (var i = 0, len = src.length; i < len; i++) {
@@ -262,6 +251,17 @@ function uniqueArray(src, key) {
         }
         values[i] = val;
     }
+
+    if (sort) {
+        if (!key) {
+            results = results.sort();
+        } else {
+            results = results.sort(function sortUniqueArray(a, b) {
+                return a[key] > b[key];
+            });
+        }
+    }
+
     return results;
 }
 

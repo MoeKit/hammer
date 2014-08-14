@@ -96,7 +96,7 @@ asyncTest('Swiping to the left should fire swipeleft event', function() {
     expect(2);
 
     hammer = new Hammer(el, {recognizers: []});
-    hammer.add(new Hammer.Swipe({velocity: -1}));
+    hammer.add(new Hammer.Swipe());
     hammer.on('swipe swipeleft', function() {
         ok(true);
     });
@@ -104,4 +104,42 @@ asyncTest('Swiping to the left should fire swipeleft event', function() {
     Simulator.gestures.swipe(el, {pos: [300, 300], deltaY: 0, deltaX: -200}, function() {
         start();
     });
+});
+
+/*
+ * Input target change
+ */
+asyncTest('Should detect input while on other element', function() {
+    expect(1);
+
+    hammer = new Hammer(el, { inputTarget: document.body });
+    hammer.on('tap', function() {
+        ok(true);
+    });
+
+    Simulator.gestures.tap(document.body, null, function() {
+        start();
+    });
+});
+
+/* Hammer.Manager constructor accepts a "recognizers" option in which each
+ * element is an array representation of a Recognizer.
+ */
+test('Hammer.Manager accepts recognizers as arrays.', function() {
+    expect(4);
+
+    hammer = new Hammer.Manager(el, {
+        recognizers: [
+            [Hammer.Swipe],
+            [Hammer.Pinch],
+            [Hammer.Rotate],
+            [Hammer.Pan, { direction: Hammer.DIRECTION_UP }, ['swipe', 'pinch'], ['rotate']]
+        ]
+    });
+    equal(4, hammer.recognizers.length);
+
+    var recognizerActual = hammer.recognizers[3];
+    equal(recognizerActual.options.direction, Hammer.DIRECTION_UP);
+    equal(2, Object.keys(recognizerActual.simultaneous).length);
+    equal(1, recognizerActual.requireFail.length);
 });

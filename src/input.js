@@ -40,17 +40,19 @@ function Input(manager, callback) {
     var self = this;
     this.manager = manager;
     this.callback = callback;
+    this.element = manager.element;
+    this.target = manager.options.inputTarget;
 
     // smaller wrapper around the handler, for the scope and the enabled state of the manager,
     // so when disabled the input events are completely bypassed.
     this.domHandler = function(ev) {
-        if (boolOrFn(self.manager.options.enable, [self.manager])) {
+        if (boolOrFn(manager.options.enable, [manager])) {
             self.handler(ev);
         }
     };
 
-    this.evEl && addEventListeners(this.manager.element, this.evEl, this.domHandler);
-    this.evWin && addEventListeners(window, this.evWin, this.domHandler);
+    this.init();
+
 }
 
 Input.prototype = {
@@ -61,11 +63,21 @@ Input.prototype = {
     handler: function() { },
 
     /**
+     * bind the events
+     */
+    init: function() {
+        this.evEl && addEventListeners(this.element, this.evEl, this.domHandler);
+        this.evTarget && addEventListeners(this.target, this.evTarget, this.domHandler);
+        this.evWin && addEventListeners(window, this.evWin, this.domHandler);
+    },
+
+    /**
      * unbind the events
      */
     destroy: function() {
-        this.elEvents && removeEventListeners(this.manager.element, this.elEvents, this.domHandler);
-        this.winEvents && removeEventListeners(window, this.winEvents, this.domHandler);
+        this.evEl && removeEventListeners(this.element, this.evEl, this.domHandler);
+        this.evTarget && removeEventListeners(this.target, this.evTarget, this.domHandler);
+        this.evWin && removeEventListeners(window, this.evWin, this.domHandler);
     }
 };
 
@@ -100,12 +112,13 @@ function inputHandler(manager, eventType, input) {
     var isFirst = (eventType & INPUT_START && (pointersLen - changedPointersLen === 0));
     var isFinal = (eventType & (INPUT_END | INPUT_CANCEL) && (pointersLen - changedPointersLen === 0));
 
-    input.isFirst = isFirst;
-    input.isFinal = isFinal;
+    input.isFirst = !!isFirst;
+    input.isFinal = !!isFinal;
 
     if (isFirst) {
         manager.session = {};
     }
+
     // source event is the normalized value of the domEvents
     // like 'touchstart, mouseup, pointerdown'
     input.eventType = eventType;
@@ -117,6 +130,7 @@ function inputHandler(manager, eventType, input) {
     manager.emit('hammer.input', input);
 
     manager.recognize(input);
+    manager.session.prevInput = input;
 }
 
 /**
@@ -144,20 +158,21 @@ function computeInputData(manager, input) {
     var firstInput = session.firstInput;
     var firstMultiple = session.firstMultiple;
     var offsetCenter = firstMultiple ? firstMultiple.center : firstInput.center;
-    var center = getCenter(pointers);
 
+    var center = input.center = getCenter(pointers);
     input.timeStamp = now();
     input.deltaTime = input.timeStamp - firstInput.timeStamp;
-    input.deltaX = center.x - offsetCenter.x;
-    input.deltaY = center.y - offsetCenter.y;
 
-    input.center = center;
     input.angle = getAngle(offsetCenter, center);
     input.distance = getDistance(offsetCenter, center);
+
+    computeDeltaXY(session, input);
     input.offsetDirection = getDirection(input.deltaX, input.deltaY);
 
     input.scale = firstMultiple ? getScale(firstMultiple.pointers, pointers) : 1;
     input.rotation = firstMultiple ? getRotation(firstMultiple.pointers, pointers) : 0;
+
+    computeIntervalInputData(session, input);
 
     // find the correct target
     var target = manager.element;
@@ -165,8 +180,28 @@ function computeInputData(manager, input) {
         target = input.srcEvent.target;
     }
     input.target = target;
+}
 
-    computeIntervalInputData(session, input);
+function computeDeltaXY(session, input) {
+    var center = input.center;
+    var offset = session.offsetDelta || {};
+    var prevDelta = session.prevDelta || {};
+    var prevInput = session.prevInput || {};
+
+    if (input.eventType === INPUT_START || prevInput.eventType === INPUT_END) {
+        prevDelta = session.prevDelta = {
+            x: prevInput.deltaX || 0,
+            y: prevInput.deltaY || 0
+        };
+
+        offset = session.offsetDelta = {
+            x: center.x,
+            y: center.y
+        };
+    }
+
+    input.deltaX = prevDelta.x + (center.x - offset.x);
+    input.deltaY = prevDelta.y + (center.y - offset.y);
 }
 
 /**
@@ -175,18 +210,11 @@ function computeInputData(manager, input) {
  * @param {Object} input
  */
 function computeIntervalInputData(session, input) {
-    var last = session.lastInterval;
-    if (!last) {
-        last = session.lastInterval = simpleCloneInputData(input);
-    }
+    var last = session.lastInterval || input,
+        deltaTime = input.timeStamp - last.timeStamp,
+        velocity, velocityX, velocityY, direction;
 
-    var deltaTime = input.timeStamp - last.timeStamp,
-        velocity,
-        velocityX,
-        velocityY,
-        direction;
-
-    if (deltaTime > COMPUTE_INTERVAL || last.velocity === undefined) {
+    if (input.eventType != INPUT_CANCEL && (deltaTime > COMPUTE_INTERVAL || last.velocity === undefined)) {
         var deltaX = last.deltaX - input.deltaX;
         var deltaY = last.deltaY - input.deltaY;
 
@@ -195,6 +223,8 @@ function computeIntervalInputData(session, input) {
         velocityY = v.y;
         velocity = (abs(v.x) > abs(v.y)) ? v.x : v.y;
         direction = getDirection(deltaX, deltaY);
+
+        session.lastInterval = input;
     } else {
         // use latest velocity info if it doesn't overtake a minimum period
         velocity = last.velocity;

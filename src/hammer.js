@@ -37,6 +37,15 @@ Hammer.defaults = {
     touchAction: TOUCH_ACTION_COMPUTE,
 
     /**
+     * EXPERIMENTAL FEATURE
+     * Change the parent input target element.
+     * If Null, then it is being set the to main element.
+     * @type {Null|EventTarget}
+     * @default null
+     */
+    inputTarget: null,
+
+    /**
      * @type {Boolean}
      * @default true
      */
@@ -65,8 +74,7 @@ Hammer.defaults = {
      */
     cssProps: {
         /**
-         * Disables text selection to improve the dragging gesture. When the value is `none` it also sets
-         * `onselectstart=false` for IE9 on the element. Mainly for desktop browsers.
+         * Disables text selection to improve the dragging gesture. Mainly for desktop browsers.
          * @type {String}
          * @default 'none'
          */

@@ -39,15 +39,16 @@ inherit(SwipeRecognizer, AttrRecognizer, {
 
         return this._super.attrTest.call(this, input) &&
             direction & input.direction &&
+            input.distance > this.options.threshold &&
             abs(velocity) > this.options.velocity && input.eventType & INPUT_END;
     },
 
     emit: function(input) {
-        this.manager.emit(this.options.event, input);
-
         var direction = directionStr(input.direction);
         if (direction) {
             this.manager.emit(this.options.event + direction, input);
         }
+
+        this.manager.emit(this.options.event, input);
     }
 });
