@@ -8,7 +8,7 @@ var TOUCH_INPUT_MAP = {
 var TOUCH_TARGET_EVENTS = 'touchstart touchmove touchend touchcancel';
 
 /**
- * Touch events input
+ * Multi-user touch events input
  * @constructor
  * @extends Input
  */
@@ -20,11 +20,7 @@ function TouchInput() {
 }
 
 inherit(TouchInput, Input, {
-    /**
-     * handle touch events
-     * @param {Object} ev
-     */
-    handler: function TEhandler(ev) {
+    handler: function MTEhandler(ev) {
         var type = TOUCH_INPUT_MAP[ev.type];
         var touches = getTouches.call(this, ev, type);
         if (!touches) {
@@ -56,20 +52,29 @@ function getTouches(ev, type) {
         return [allTouches, allTouches];
     }
 
-    var i, len;
-    var targetTouches = toArray(ev.targetTouches);
-    var changedTouches = toArray(ev.changedTouches);
-    var changedTargetTouches = [];
+    var i,
+        targetTouches,
+        changedTouches = toArray(ev.changedTouches),
+        changedTargetTouches = [],
+        target = this.target;
+
+    // get target touches from touches
+    targetTouches = allTouches.filter(function(touch) {
+        return hasParent(touch.target, target);
+    });
 
     // collect touches
     if (type === INPUT_START) {
-        for (i = 0, len = targetTouches.length; i < len; i++) {
+        i = 0;
+        while (i < targetTouches.length) {
             targetIds[targetTouches[i].identifier] = true;
+            i++;
         }
     }
 
     // filter changed touches to only contain touches that exist in the collected target ids
-    for (i = 0, len = changedTouches.length; i < len; i++) {
+    i = 0;
+    while (i < changedTouches.length) {
         if (targetIds[changedTouches[i].identifier]) {
             changedTargetTouches.push(changedTouches[i]);
         }
@@ -78,6 +83,7 @@ function getTouches(ev, type) {
         if (type & (INPUT_END | INPUT_CANCEL)) {
             delete targetIds[changedTouches[i].identifier];
         }
+        i++;
     }
 
     if (!changedTargetTouches.length) {

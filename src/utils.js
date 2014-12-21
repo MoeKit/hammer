@@ -42,7 +42,7 @@ function invokeArrayArg(arg, fn, context) {
  * @param {Object} context
  */
 function each(obj, iterator, context) {
-    var i, len;
+    var i;
 
     if (!obj) {
         return;
@@ -51,8 +51,10 @@ function each(obj, iterator, context) {
     if (obj.forEach) {
         obj.forEach(iterator, context);
     } else if (obj.length !== undefined) {
-        for (i = 0, len = obj.length; i < len; i++) {
+        i = 0;
+        while (i < obj.length) {
             iterator.call(context, obj[i], i, obj);
+            i++;
         }
     } else {
         for (i in obj) {
@@ -71,10 +73,12 @@ function each(obj, iterator, context) {
  */
 function extend(dest, src, merge) {
     var keys = Object.keys(src);
-    for (var i = 0, len = keys.length; i < len; i++) {
+    var i = 0;
+    while (i < keys.length) {
         if (!merge || (merge && dest[keys[i]] === undefined)) {
             dest[keys[i]] = src[keys[i]];
         }
+        i++;
     }
     return dest;
 }
@@ -147,25 +151,25 @@ function ifUndefined(val1, val2) {
 
 /**
  * addEventListener with multiple events at once
- * @param {HTMLElement} element
+ * @param {EventTarget} target
  * @param {String} types
  * @param {Function} handler
  */
-function addEventListeners(element, types, handler) {
+function addEventListeners(target, types, handler) {
     each(splitStr(types), function(type) {
-        element.addEventListener(type, handler, false);
+        target.addEventListener(type, handler, false);
     });
 }
 
 /**
  * removeEventListener with multiple events at once
- * @param {HTMLElement} element
+ * @param {EventTarget} target
  * @param {String} types
  * @param {Function} handler
  */
-function removeEventListeners(element, types, handler) {
+function removeEventListeners(target, types, handler) {
     each(splitStr(types), function(type) {
-        element.removeEventListener(type, handler, false);
+        target.removeEventListener(type, handler, false);
     });
 }
 
@@ -216,10 +220,12 @@ function inArray(src, find, findByKey) {
     if (src.indexOf && !findByKey) {
         return src.indexOf(find);
     } else {
-        for (var i = 0, len = src.length; i < len; i++) {
+        var i = 0;
+        while (i < src.length) {
             if ((findByKey && src[i][findByKey] == find) || (!findByKey && src[i] === find)) {
                 return i;
             }
+            i++;
         }
         return -1;
     }
@@ -244,12 +250,15 @@ function toArray(obj) {
 function uniqueArray(src, key, sort) {
     var results = [];
     var values = [];
-    for (var i = 0, len = src.length; i < len; i++) {
+    var i = 0;
+
+    while (i < src.length) {
         var val = key ? src[i][key] : src[i];
         if (inArray(values, val) < 0) {
             results.push(src[i]);
         }
         values[i] = val;
+        i++;
     }
 
     if (sort) {
@@ -275,13 +284,15 @@ function prefixed(obj, property) {
     var prefix, prop;
     var camelProp = property[0].toUpperCase() + property.slice(1);
 
-    for (var i = 0, len = VENDOR_PREFIXES.length; i < len; i++) {
+    var i = 0;
+    while (i < VENDOR_PREFIXES.length) {
         prefix = VENDOR_PREFIXES[i];
         prop = (prefix) ? prefix + camelProp : property;
 
         if (prop in obj) {
             return prop;
         }
+        i++;
     }
     return undefined;
 }
@@ -293,4 +304,14 @@ function prefixed(obj, property) {
 var _uniqueId = 1;
 function uniqueId() {
     return _uniqueId++;
+}
+
+/**
+ * get the window object of an element
+ * @param {HTMLElement} element
+ * @returns {DocumentView|Window}
+ */
+function getWindowForElement(element) {
+    var doc = element.ownerDocument || element;
+    return (doc.defaultView || doc.parentWindow || window);
 }
