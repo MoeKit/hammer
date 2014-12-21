@@ -15,6 +15,7 @@ asyncTest('should pinch and pan simultaneously be recognized when enabled', func
 
     var panCount = 0,
         pinchCount = 0;
+
     hammer = new Hammer.Manager(el, {
         touchAction: 'none'
     });
@@ -36,8 +37,8 @@ asyncTest('should pinch and pan simultaneously be recognized when enabled', func
         var event, touches;
 
         touches = [
-            {clientX: 0, clientY: 10, identifier: 0 },
-            {clientX: 10, clientY: 10, identifier: 1 }
+            {clientX: 0, clientY: 10, identifier: 0, target: el },
+            {clientX: 10, clientY: 10, identifier: 1, target: el }
         ];
 
         event = document.createEvent('Event');
@@ -45,11 +46,12 @@ asyncTest('should pinch and pan simultaneously be recognized when enabled', func
         event.touches = touches;
         event.targetTouches = touches;
         event.changedTouches = touches;
+        el.dispatchEvent(event);
 
         setTimeout(function() {
             touches = [
-                {clientX: 10, clientY: 20, identifier: 0 },
-                {clientX: 20, clientY: 20, identifier: 1 }
+                {clientX: 10, clientY: 20, identifier: 0, target: el },
+                {clientX: 20, clientY: 20, identifier: 1, target: el }
             ];
 
             event = document.createEvent('Event');
@@ -62,10 +64,9 @@ asyncTest('should pinch and pan simultaneously be recognized when enabled', func
         }, 100);
 
         setTimeout(function() {
-            start();
             touches = [
-                {clientX: 20, clientY: 30, identifier: 0 },
-                {clientX: 40, clientY: 30, identifier: 1 }
+                {clientX: 20, clientY: 30, identifier: 0, target: el },
+                {clientX: 40, clientY: 30, identifier: 1, target: el }
             ];
 
             event = document.createEvent('Event');
@@ -73,7 +74,6 @@ asyncTest('should pinch and pan simultaneously be recognized when enabled', func
             event.touches = touches;
             event.targetTouches = touches;
             event.changedTouches = touches;
-
             el.dispatchEvent(event);
 
             event = document.createEvent('Event');
@@ -81,7 +81,6 @@ asyncTest('should pinch and pan simultaneously be recognized when enabled', func
             event.touches = touches;
             event.targetTouches = touches;
             event.changedTouches = touches;
-
             el.dispatchEvent(event);
 
             cb();
@@ -94,12 +93,13 @@ asyncTest('should pinch and pan simultaneously be recognized when enabled', func
         equal(pinchCount, 1);
 
         pinch.dropRecognizeWith(hammer.get('pan'));
-        stop();
 
         // only the pan gesture will be recognized
         executeGesture(function() {
             equal(panCount, 2);
             equal(pinchCount, 1);
+
+            start();
         });
     });
 });

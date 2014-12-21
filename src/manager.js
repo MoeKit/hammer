@@ -11,6 +11,7 @@ function Manager(element, options) {
     options = options || {};
 
     this.options = merge(options, Hammer.defaults);
+    this.options.inputTarget = this.options.inputTarget || element;
 
     this.handlers = {};
     this.session = {};
@@ -25,7 +26,7 @@ function Manager(element, options) {
     each(options.recognizers, function(item) {
         var recognizer = this.add(new (item[0])(item[1]));
         item[2] && recognizer.recognizeWith(item[2]);
-        item[3] && recognizer.requireFailure(item[2]);
+        item[3] && recognizer.requireFailure(item[3]);
     }, this);
 }
 
@@ -37,6 +38,17 @@ Manager.prototype = {
      */
     set: function(options) {
         extend(this.options, options);
+
+        // Options that need a little more setup
+        if (options.touchAction) {
+            this.touchAction.update();
+        }
+        if (options.inputTarget) {
+            // Clean up existing event listeners and reinitialize
+            this.input.destroy();
+            this.input.target = options.inputTarget;
+            this.input.init();
+        }
         return this;
     },
 
@@ -57,7 +69,8 @@ Manager.prototype = {
      * @param {Object} inputData
      */
     recognize: function(inputData) {
-        if (this.session.stopped) {
+        var session = this.session;
+        if (session.stopped) {
             return;
         }
 
@@ -65,7 +78,7 @@ Manager.prototype = {
         this.touchAction.preventDefaults(inputData);
 
         var recognizer;
-        var session = this.session;
+        var recognizers = this.recognizers;
 
         // this holds the recognizer that is being recognized.
         // so the recognizer's state needs to be BEGAN, CHANGED, ENDED or RECOGNIZED
@@ -78,8 +91,9 @@ Manager.prototype = {
             curRecognizer = session.curRecognizer = null;
         }
 
-        for (var i = 0, len = this.recognizers.length; i < len; i++) {
-            recognizer = this.recognizers[i];
+        var i = 0;
+        while (i < recognizers.length) {
+            recognizer = recognizers[i];
 
             // find out if we are allowed try to recognize the input for this one.
             // 1.   allow if the session is NOT forced stopped (see the .stop() method)
@@ -87,7 +101,7 @@ Manager.prototype = {
             //      that is being recognized.
             // 3.   allow if the recognizer is allowed to run simultaneous with the current recognized recognizer.
             //      this can be setup with the `recognizeWith()` method on the recognizer.
-            if (this.session.stopped !== FORCED_STOP && ( // 1
+            if (session.stopped !== FORCED_STOP && ( // 1
                     !curRecognizer || recognizer == curRecognizer || // 2
                     recognizer.canRecognizeWith(curRecognizer))) { // 3
                 recognizer.recognize(inputData);
@@ -100,6 +114,7 @@ Manager.prototype = {
             if (!curRecognizer && recognizer.state & (STATE_BEGAN | STATE_CHANGED | STATE_ENDED)) {
                 curRecognizer = session.curRecognizer = recognizer;
             }
+            i++;
         }
     },
 
@@ -209,7 +224,7 @@ Manager.prototype = {
         }
 
         // no handlers, so skip it all
-        var handlers = this.handlers[event];
+        var handlers = this.handlers[event] && this.handlers[event].slice();
         if (!handlers || !handlers.length) {
             return;
         }
@@ -219,8 +234,10 @@ Manager.prototype = {
             data.srcEvent.preventDefault();
         };
 
-        for (var i = 0, len = handlers.length; i < len; i++) {
+        var i = 0;
+        while (i < handlers.length) {
             handlers[i](data);
+            i++;
         }
     },
 
@@ -245,15 +262,12 @@ Manager.prototype = {
  */
 function toggleCssProps(manager, add) {
     var element = manager.element;
-    var cssProps = manager.options.cssProps;
-
-    each(cssProps, function(value, name) {
+    if (!element.style) {
+        return;
+    }
+    each(manager.options.cssProps, function(value, name) {
         element.style[prefixed(element.style, name)] = add ? value : '';
     });
-
-    var falseFn = add && function() { return false; };
-    if (cssProps.userSelect == 'none') { element.onselectstart = falseFn; }
-    if (cssProps.userDrag == 'none') { element.ondragstart = falseFn; }
 }
 
 /**

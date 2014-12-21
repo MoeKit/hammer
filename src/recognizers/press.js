@@ -29,7 +29,6 @@ inherit(PressRecognizer, Recognizer, {
 
     process: function(input) {
         var options = this.options;
-
         var validPointers = input.pointers.length === options.pointers;
         var validMovement = input.distance < options.threshold;
         var validTime = input.deltaTime > options.time;
@@ -42,10 +41,12 @@ inherit(PressRecognizer, Recognizer, {
             this.reset();
         } else if (input.eventType & INPUT_START) {
             this.reset();
-            this._timer = setTimeoutScope(function() {
+            this._timer = setTimeoutContext(function() {
                 this.state = STATE_RECOGNIZED;
                 this.tryEmit();
             }, options.time, this);
+        } else if (input.eventType & INPUT_END) {
+            return STATE_RECOGNIZED;
         }
         return STATE_FAILED;
     },
@@ -54,8 +55,14 @@ inherit(PressRecognizer, Recognizer, {
         clearTimeout(this._timer);
     },
 
-    emit: function() {
-        if (this.state === STATE_RECOGNIZED) {
+    emit: function(input) {
+        if (this.state !== STATE_RECOGNIZED) {
+            return;
+        }
+
+        if (input && (input.eventType & INPUT_END)) {
+            this.manager.emit(this.options.event + 'up', input);
+        } else {
             this._input.timeStamp = now();
             this.manager.emit(this.options.event, this._input);
         }

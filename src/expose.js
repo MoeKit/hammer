@@ -25,6 +25,12 @@ extend(Hammer, {
     Input: Input,
     TouchAction: TouchAction,
 
+    TouchInput: TouchInput,
+    MouseInput: MouseInput,
+    PointerEventInput: PointerEventInput,
+    TouchMouseInput: TouchMouseInput,
+    SingleTouchInput: SingleTouchInput,
+
     Recognizer: Recognizer,
     AttrRecognizer: AttrRecognizer,
     Tap: TapRecognizer,
@@ -48,8 +54,8 @@ if (typeof define == TYPE_FUNCTION && define.amd) {
     define(function() {
         return Hammer;
     });
-} else if (typeof module != TYPE_UNDEFINED && module.exports) {
+} else if (typeof module != 'undefined' && module.exports) {
     module.exports = Hammer;
 } else {
-    window.Hammer = Hammer;
+    window[exportName] = Hammer;
 }
